@@ -77,7 +77,7 @@ so an indexer can anchor the chain. Error codes: 1 length, 2 key prefix, 3 exit 
 ## Use as a library
 
 ```toml
-terrasol-sp1-verifier = { git = "…", features = ["no-entrypoint"] }
+terrasol-sp1-verifier = { git = "https://github.com/archtum66-dev/terrasol-sp1-verifier", features = ["no-entrypoint"] }
 ```
 
 ```rust
