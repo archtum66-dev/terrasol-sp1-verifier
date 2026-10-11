@@ -1,0 +1,28 @@
+TerraSol SP1 Verifier 0.2.0 – local validator, 11 Oct 2026
+Agave 4.3.0 (solana-test-validator), cargo-build-sbf 4.3.0, platform-tools v1.57, --arch v3
+Program terrasol_sp1_verifier.so, 29,176 bytes, SHA-256 0bd2a11007048fde2b5cf5f7950b63e9ae95746db3763225bf65c448ef69ecdf
+
+=== original proof ===
+Transaction 754 bytes (limit 1232), volume original
+Signature: t3QchoFpoAia1qCDfpjNpH8ykXGhxyvgAp4uy7jH8jhG5kr5GsfLmAkV2ZDtU8PfnjajJACDT4Feur39fjbynqx
+Slot 314, fee 5000 lamports, compute units 105034
+Error: None
+  Program ComputeBudget111111111111111111111111111111 invoke [1]
+  Program ComputeBudget111111111111111111111111111111 success
+  Program 7bLApFFro33xg8v1cVgF8W2F5CgTZpJzt7nQjhg1KoKP invoke [1]
+  Program log: SP1 chain proof VALID: 10 blocks, 100000 inputs, 42757 results, volume 824932
+  Program data: Hf1x5arq2i1x/LzKWgEfnNsK0EEYo88ssWDR/eYS6Bc= zL2pqZ2HoGkvamMbuxyGZu7u8eZNWPhd9GikdLxGWnc=
+  Program 7bLApFFro33xg8v1cVgF8W2F5CgTZpJzt7nQjhg1KoKP consumed 104884 of 399850 compute units
+  Program 7bLApFFro33xg8v1cVgF8W2F5CgTZpJzt7nQjhg1KoKP success
+
+=== volume changed by 1 (--tamper) ===
+Transaction 754 bytes (limit 1232), volume TAMPERED
+Signature: 4UXknWy7HqNaCdBxv84Z88jHBqBUMzShN4Rgkx9hVv7aVHjakBKuR8AUpMcHe9gTN4rs7arct1HpLnBxcD71kDLL
+Slot 298, fee 5000 lamports, compute units 103661
+Error: {'InstructionError': [1, {'Custom': 5}]}
+  Program ComputeBudget111111111111111111111111111111 invoke [1]
+  Program ComputeBudget111111111111111111111111111111 success
+  Program 7bLApFFro33xg8v1cVgF8W2F5CgTZpJzt7nQjhg1KoKP invoke [1]
+  Program log: SP1 chain proof INVALID: Proof
+  Program 7bLApFFro33xg8v1cVgF8W2F5CgTZpJzt7nQjhg1KoKP consumed 103511 of 399850 compute units
+  Program 7bLApFFro33xg8v1cVgF8W2F5CgTZpJzt7nQjhg1KoKP failed: custom program error: 0x5

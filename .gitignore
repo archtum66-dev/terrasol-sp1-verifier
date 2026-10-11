@@ -1,0 +1,10 @@
+# build output
+target/
+ziel/
+*.so
+# keys and secrets: never commit
+*keypair*.json
+id.json
+*.key
+.env
+.env.*

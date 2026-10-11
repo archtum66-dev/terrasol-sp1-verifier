@@ -1,0 +1,26 @@
+[package]
+name = "terrasol-sp1-verifier"
+version = "0.2.0"
+edition = "2021"
+description = "On-chain verifier for SP1 v6 Groth16 proofs on Solana (alt_bn128 syscalls, ~105k compute units)"
+license = "Apache-2.0"
+readme = "../README.md"
+keywords = ["solana", "sp1", "groth16", "zk", "verifier"]
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "3"
+groth16-solana = "0.2.0"
+
+[dev-dependencies]
+# Reference verifier from Succinct, used only in tests to cross-check results
+sp1-verifier = { version = "=6.8.1", default-features = false }
+
+[features]
+# Build as a library for CPI without the program entrypoint
+no-entrypoint = []
+
+[workspace]

@@ -1,0 +1,17 @@
+[package]
+name = "terrasol-sp1-vkgen"
+version = "0.2.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "vkgen"
+path = "src/main.rs"
+
+[dependencies]
+# Same version as the prover (SP1 6.8.1): contains the Groth16 verifying key v6.1.0
+sp1-verifier = { version = "=6.8.1", default-features = false }
+sha2 = "0.10"
+
+[workspace]
