@@ -8,7 +8,15 @@
 //! Two layers:
 //! - [`verify_sp1_groth16`]: generic check for any SP1 program (pass its verifying-key hash).
 //! - [`verify_chain_proof`]: the deployed program. It accepts proofs of exactly one SP1 program
-//!   (`vk::PROGRAM_VKEY_HASH`) whose public values are a 188-byte [`ChainSummary`].
+//!   (`vk::PROGRAM_VKEY_HASH`) whose public values are a 188-byte [`ChainSummary`], and only
+//!   if every block of the chain was proved by the pinned block program (`vk::BLOCK_VKEY`).
+//!   [`verify_chain_proof_for`] does the same for keys of your own choice.
+//!
+//! Why the block key is pinned (0.2.1): the chain program verifies the block proofs inside SP1
+//! against a block key it receives as a private input and only commits that key. A valid chain
+//! proof therefore says nothing until the verifier compares the committed key with the block
+//! program it trusts. Up to 0.2.0 the deployed program did not, so a chain proved with any
+//! block program was accepted.
 //!
 //! Instruction data of the deployed program: proof (356 bytes, exactly
 //! `SP1ProofWithPublicValues::bytes()`) followed by the public values (188 bytes).
@@ -37,12 +45,15 @@ pub enum Error {
     ExitCode = 3,
     VkRoot = 4,
     Proof = 5,
+    /// Valid chain proof, but its blocks were proved by another block program (since 0.2.1)
+    BlockVkey = 6,
 }
 
 /// What a valid chain proof states (decoded from its public values).
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChainSummary {
-    /// Verifying-key hash of the SP1 program that proved each block
+    /// Verifying-key digest of the SP1 program that proved each block, as committed by the
+    /// chain program (`vk.hash_u32()`, 8 × u32 little-endian)
     pub block_vkey: [u8; 32],
     /// State commitment at the start of the chain
     pub start: [u8; 32],
@@ -153,13 +164,30 @@ pub fn decode_chain_summary(values: &[u8]) -> Result<ChainSummary, Error> {
     })
 }
 
-/// Verifies a chain proof of the program fixed in `vk::PROGRAM_VKEY_HASH` and returns its summary.
-pub fn verify_chain_proof(proof: &[u8], values: &[u8]) -> Result<ChainSummary, Error> {
+/// Verifies a chain proof of the chain program `program_vkey_hash` and checks that every block
+/// was proved by the block program `block_vkey` (digest as committed, see [`ChainSummary`]).
+/// Returns the summary only if both hold.
+pub fn verify_chain_proof_for(
+    proof: &[u8],
+    values: &[u8],
+    program_vkey_hash: &[u8; 32],
+    block_vkey: &[u8; 32],
+) -> Result<ChainSummary, Error> {
     if proof.len() != PROOF_LEN || values.len() != CHAIN_VALUES_LEN {
         return Err(Error::Length);
     }
-    verify_sp1_groth16(proof, values, &vk::PROGRAM_VKEY_HASH)?;
-    decode_chain_summary(values)
+    verify_sp1_groth16(proof, values, program_vkey_hash)?;
+    let s = decode_chain_summary(values)?;
+    if s.block_vkey != *block_vkey {
+        return Err(Error::BlockVkey);
+    }
+    Ok(s)
+}
+
+/// Verifies a chain proof of the deployed keys (`vk::PROGRAM_VKEY_HASH`, `vk::BLOCK_VKEY`)
+/// and returns its summary.
+pub fn verify_chain_proof(proof: &[u8], values: &[u8]) -> Result<ChainSummary, Error> {
+    verify_chain_proof_for(proof, values, &vk::PROGRAM_VKEY_HASH, &vk::BLOCK_VKEY)
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -258,5 +286,28 @@ mod tests {
         other[31] ^= 1;
         assert_eq!(verify_sp1_groth16(&p, &v, &other), Err(Error::Proof));
         assert_eq!(verify_sp1_groth16(&p, &v, &vk::PROGRAM_VKEY_HASH), Ok(()));
+    }
+
+    #[test]
+    fn block_vkey_is_pinned() {
+        // The sample chain was proved with the pinned block program.
+        let (p, v) = data();
+        assert_eq!(decode_chain_summary(&v).unwrap().block_vkey, vk::BLOCK_VKEY);
+        assert!(verify_chain_proof_for(&p, &v, &vk::PROGRAM_VKEY_HASH, &vk::BLOCK_VKEY).is_ok());
+    }
+
+    #[test]
+    fn other_block_program_rejected() {
+        // A valid chain proof is not enough: if the deployment trusts another block program,
+        // the same proof must be refused (the case accepted up to 0.2.0).
+        let (p, v) = data();
+        assert!(verify_sp1_groth16(&p, &v, &vk::PROGRAM_VKEY_HASH).is_ok(), "the proof itself is valid");
+        let mut trusted = vk::BLOCK_VKEY;
+        trusted[0] ^= 1;
+        assert_eq!(verify_chain_proof_for(&p, &v, &vk::PROGRAM_VKEY_HASH, &trusted), Err(Error::BlockVkey));
+        // Changing the committed key in the public values breaks the proof instead.
+        let mut v2 = v.clone();
+        v2[0] ^= 1;
+        assert_eq!(verify_chain_proof(&p, &v2), Err(Error::Proof));
     }
 }

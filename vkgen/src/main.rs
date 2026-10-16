@@ -1,8 +1,12 @@
 //! Generates `program/src/vk.rs`: the Groth16 verifying key of SP1 6.8.1 (circuit v6.1.0),
 //! decompressed into the format of the Solana alt_bn128 syscalls (big-endian, G2 = x.c1|x.c0|y.c1|y.c0),
-//! plus the key prefix, vk_root and the verifying-key hash of the SP1 program whose proofs are accepted.
+//! plus the key prefix, vk_root, the verifying-key hash of the SP1 program whose proofs are accepted
+//! and (since 0.2.1) the key of the block program each chain must be proved with.
 //!
-//! Usage: vkgen <program_vkey_hash 0x…> <output vk.rs>
+//! Usage: vkgen <program_vkey_hash 0x…> <block_vkey 0x…> <output vk.rs>
+//!   program_vkey_hash: `vk.bytes32()` of the chain program
+//!   block_vkey:        `vk.hash_u32()` of the block program as 32 bytes (8 × u32 little-endian),
+//!                      exactly as the chain program commits it in bytes 0..32 of its public values
 use sp1_verifier::converter::{
     g1_point_to_uncompressed_bytes, g2_point_to_uncompressed_bytes, unchecked_compressed_x_to_g1_point,
     unchecked_compressed_x_to_g2_point,
@@ -23,10 +27,18 @@ fn bytes(name: &str, b: &[u8]) -> String {
 
 fn main() {
     let a: Vec<String> = std::env::args().collect();
-    assert_eq!(a.len(), 3, "usage: vkgen <program_vkey_hash 0x…> <output vk.rs>");
+    if a.len() != 4 {
+        eprintln!("usage: vkgen <program_vkey_hash 0x…> <block_vkey 0x…> <output vk.rs>");
+        std::process::exit(2);
+    }
     let vk: &[u8] = &sp1_verifier::GROTH16_VK_BYTES;
     let h = hex_decode(a[1].trim_start_matches("0x"));
-    assert_eq!(h.len(), 32, "vkey hash must be 32 bytes");
+    let block = hex_decode(a[2].trim_start_matches("0x"));
+    if h.len() != 32 || block.len() != 32 {
+        eprintln!("program vkey hash and block vkey must be 32 bytes (64 hex characters) each");
+        std::process::exit(2);
+    }
+    let out = &a[3];
 
     // same layout as sp1-verifier load_groth16_verifying_key_from_bytes
     let alpha = unchecked_compressed_x_to_g1_point(&vk[..32]).unwrap();
@@ -48,6 +60,9 @@ fn main() {
     s.push_str(&bytes("VK_ROOT", &*sp1_verifier::VK_ROOT_BYTES));
     s.push_str("/// Verifying-key hash (vk.bytes32) of the SP1 program whose proofs the deployed program accepts.\n");
     s.push_str(&bytes("PROGRAM_VKEY_HASH", &h));
+    s.push_str("/// Key of the block program every chain must be proved with (vk.hash_u32, 8 × u32 little-endian),\n");
+    s.push_str("/// compared with bytes 0..32 of the chain summary.\n");
+    s.push_str(&bytes("BLOCK_VKEY", &block));
     s.push_str(&bytes("VK_ALPHA_G1", &g1_point_to_uncompressed_bytes(&alpha).unwrap()));
     s.push_str(&bytes("VK_BETA_G2", &g2_point_to_uncompressed_bytes(&beta).unwrap()));
     s.push_str(&bytes("VK_GAMMA_G2", &g2_point_to_uncompressed_bytes(&gamma).unwrap()));
@@ -61,7 +76,7 @@ fn main() {
         s.push_str("],\n");
     }
     s.push_str("];\n");
-    std::fs::write(&a[2], s).unwrap();
+    std::fs::write(out, s).unwrap();
     println!("vk.rs written: {} public inputs, prefix {:02x?}", n - 1, prefix);
 }
 

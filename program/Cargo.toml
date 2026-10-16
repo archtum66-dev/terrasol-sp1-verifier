@@ -1,6 +1,6 @@
 [package]
 name = "terrasol-sp1-verifier"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "On-chain verifier for SP1 v6 Groth16 proofs on Solana (alt_bn128 syscalls, ~105k compute units)"
 license = "Apache-2.0"
